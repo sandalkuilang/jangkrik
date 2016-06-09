@@ -25,7 +25,7 @@ String response; //global variable for pulling AT command responses from inside 
 /* Timer Const */
 int ATtimeOut = 5000; // How long we will give an AT command to complete
 int FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
- 
+uint16_t INTERVAL_GPS = 30; // in second
 
 //cloud URL Building
 /*
@@ -113,17 +113,17 @@ void makeRequest()
 	/* Lots of other options in the HTTP setup, see the datasheet: google -sim800_series_at_command_manual */
 	 
 	//initialize HTTP service. If it's already on, this will throw an Error. 
-	sendATCommand("AT+HTTPINIT", 200);  
+	sendATCommand("AT+HTTPINIT", 100);  
 
 	//Mandatory, Bearer profile identifier
-	sendATCommand("AT+HTTPPARA=\"CID\",1", 200); 
+	sendATCommand("AT+HTTPPARA=\"CID\",1", 100); 
 
 #ifdef DEBUG
 	Serial.print("Send URL: ");
 #endif
 
 	sendURL();
-	delay(2000);
+	delay(1000);
 
 	clearBuffer();
 
@@ -231,10 +231,16 @@ void setupBaudRate()
 
 void setupGPS() 
 { 
-	sendATCommand("AT+IPR=9600", 100);
-	sendATCommand("AT+CGNSPWR=1", 100);
-	sendATCommand("AT+CGNSSEQ=RMC", 100);
-	sendATCommand("AT+CGNSURC=10", 100);
+	char cgnsurcCommand[25];
+	String CGNSURC = "AT+CGNSURC=";
+
+	sendATCommand("AT+IPR=9600", 100); // set baud rate to 9600
+	sendATCommand("AT+CGNSPWR=1", 100); // turn on GPS
+	sendATCommand("AT+CGNSSEQ=RMC", 100); // set resulr mode to RMC
+
+	CGNSURC.concat(INTERVAL_GPS); // append with custom interval declared above
+	CGNSURC.toCharArray(cgnsurcCommand, 25);
+	sendATCommand(cgnsurcCommand, 100); // set interval for automatic return value from GPS device
 }
   
 void setupGPRS()
