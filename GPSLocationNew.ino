@@ -24,7 +24,7 @@ String response; //global variable for pulling AT command responses from inside 
 
 /* Timer Const */
 int ATtimeOut = 5000; // How long we will give an AT command to complete
-int FIRST_TIME_BOOT = 2000; // 2 second
+int FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
  
 
 //cloud URL Building
@@ -42,9 +42,10 @@ String content;
 void setup()
 {
 	setupBaudRate();
+	delay(FIRST_TIME_BOOT);
 	setupGPS();
 	setupGPRS(); 
-	Serial.println("Setup Finish");
+	Serial.println("Proudly Made in Indonesia");
 }
 
 void loop()
@@ -65,7 +66,7 @@ void loop()
 			}
 			else
 			{
-				// process another data
+				// process another data, SMS or Call
 			} 
 			content = String("");
 		}
@@ -105,32 +106,17 @@ bool processGPS(String value)
 	} 
 	return false;
 }
-
-
+ 
 void makeRequest()
 {
 	//Make HTTP GET request and then close out GPRS connection
 	/* Lots of other options in the HTTP setup, see the datasheet: google -sim800_series_at_command_manual */
 	 
 	//initialize HTTP service. If it's already on, this will throw an Error. 
-	if (ss.println("AT+HTTPINIT"))
-	{
-		if (response != "OK")
-		{
-			//if you DO NOT respond OK (ie, you're already on)
-			//gprsConnectionFailure = true;
-			if (ss.println("AT+HTTPTERM")) { //TURN OFF 
-				if (ss.println("AT+HTTPINIT")) { //TURN ON
-
-				}
-			}
-		}
-	}
-	delay(1000); 
+	sendATCommand("AT+HTTPINIT", 200);  
 
 	//Mandatory, Bearer profile identifier
-	ss.println("AT+HTTPPARA=\"CID\",1");
-	delay(100); 
+	sendATCommand("AT+HTTPPARA=\"CID\",1", 200); 
 
 #ifdef DEBUG
 	Serial.print("Send URL: ");
@@ -230,15 +216,10 @@ void flushBuffer() {
 	}
 }
  
-void clearBuffer() { //if there is anything is the sSerial serial Buffer, clear it out and print it in the Serial Monitor.
-	char inChar;
-	String outputChar;
-	for (int i = 0; i < 10; i++)
-	{
-		while (ss.available()) {
-			inChar = ss.read(); 
-			delay(10);
-		}
+void clearBuffer() { 
+	while (ss.available()) { // do it fast
+		ss.read(); //if there is anything is the serial Buffer, clear it out
+		delay(10);
 	}
 }
 
@@ -258,17 +239,13 @@ void setupGPS()
   
 void setupGPRS()
 { 	 
-	sendATCommand("ATE0", 100);
-	delay(100); 
+	sendATCommand("ATE0", 200); 
 
-	sendATCommand("AT+CMGF=1", 100);
-	delay(100); 
+	sendATCommand("AT+CMGF=1", 200); 
 
-	sendATCommand("AT+CGATT=1", 100);
-	delay(100); 
+	sendATCommand("AT+CGATT=1", 200); 
 
-	sendATCommand("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", 100);
-	delay(100);
+	sendATCommand("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", 200); 
 
 	// setup APN
 	int complete = 0;
@@ -283,8 +260,8 @@ void setupGPRS()
 	sendATCommand("AT+SAPBR=1,1", 2000); 
 }
 
-int8_t sendATCommand(char* ATcommand, unsigned int timeout) {
-	uint8_t x = 0, answer = 0;
+void sendATCommand(char* ATcommand, unsigned int timeout) {
+	uint8_t x = 0;
 	char responses[100];
 	unsigned long previous;
 
@@ -306,6 +283,5 @@ int8_t sendATCommand(char* ATcommand, unsigned int timeout) {
 			x++;
 		}
 	} while (((millis() - previous) < timeout));    // Waits for the asnwer with time out
-
-	return answer;
+	 
 } 
