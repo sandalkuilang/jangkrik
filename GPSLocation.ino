@@ -18,33 +18,46 @@ by sandalkuilang
 SoftwareSerial ss = SoftwareSerial(TX_PIN, RX_PIN); //initialize software serial
 
 String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL
-String URL = "http://data.sparkfun.com/input/";
 
 String response; //global variable for pulling AT command responses from inside functions (there has to be a better way to do this)
 
 /* Timer Const */
 int ATtimeOut = 5000; // How long we will give an AT command to complete
 int FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
-uint16_t INTERVAL_GPS = 30; // in second
+uint16_t INTERVAL_GPS = 30; // in second 
 
 //cloud URL Building
 /*
 https://data.sparkfun.com/streams/NJ65RArGbRUd3A8DNxab
 */
+String URL = "http://data.sparkfun.com/input/";
 const String publicKey = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
 const String privateKey = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
 const String deleteKey = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
+
+
+// /*Dweet Storage*/ 
+//const String publicKey = "for/sandalkuilang"; //Public Key for data stream
+//const String privateKey = ""; //Private Key for data stream
+//const String deleteKey = "-----"; //Delete Key for data stream
+//String URL = "https://dweet.io/dweet/";
+
 const byte NUM_FIELDS = 6; //number of fields in data stream
 const String fieldNames[NUM_FIELDS] = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
 String fieldData[NUM_FIELDS]; //holder for the data values
-String content;
+
+String content; // receive message
+bool isHttpRead = false; // read needed
+uint16_t tolerateIdle = 0; // 5 idle
 
 void setup()
 {
 	setupBaudRate();
 	delay(FIRST_TIME_BOOT);
-	setupGPS();
+	setupGPS(25);
 	setupGPRS(); 
+	delay(1000);
+	closeGPRS();
 	Serial.println("Proudly Made in Indonesia");
 }
 
@@ -61,7 +74,57 @@ void loop()
 			{ 
 				if (processGPS(content))
 				{
+					int speed = fieldData[4].toInt();
+					
+					if (speed < 5)
+					{
+						tolerateIdle += 1;
+						switch (tolerateIdle)
+						{
+						case 1:
+							setupGPS(30);
+							break;
+						case 2:
+							setupGPS(35);
+							break;
+						case 3:
+							setupGPS(40);
+							break;
+						case 4:
+							setupGPS(45);
+							break;
+						case 5:
+							setupGPS(50);
+							break;
+						default:
+							break;
+						}
+						if (tolerateIdle > 5)
+						{
+							setupGPS(55);
+							tolerateIdle = 6;
+						}
+					}
+					else if (speed >= 5 && speed < 20)
+					{
+						setupGPS(25);
+						tolerateIdle = 0;
+					}
+					else if (speed >= 20 && speed < 40)
+					{
+						setupGPS(15);
+						tolerateIdle = 0;
+					}
+					else if (speed >= 40)
+					{
+						setupGPS(5);
+						tolerateIdle = 0;
+					} 
+					
+					openGPRS();
 					makeRequest();
+					closeGPRS();
+
 				}
 			}
 			else
@@ -112,18 +175,12 @@ void makeRequest()
 	//Make HTTP GET request and then close out GPRS connection
 	/* Lots of other options in the HTTP setup, see the datasheet: google -sim800_series_at_command_manual */
 	 
-	//initialize HTTP service. If it's already on, this will throw an Error. 
-	sendATCommand("AT+HTTPINIT", 100);  
-
-	//Mandatory, Bearer profile identifier
-	sendATCommand("AT+HTTPPARA=\"CID\",1", 100); 
-
 #ifdef DEBUG
 	Serial.print("Send URL: ");
 #endif
-
-	sendURL();
-	delay(1000);
+	
+	sendGetRequest();
+	delay(2800);
 
 	clearBuffer();
 
@@ -131,14 +188,23 @@ void makeRequest()
 	Serial.print("Make GET Request: ");
 #endif 
 	ss.println("AT+HTTPACTION=0");
-	for (int d = 0; d <= 10; d++)
+	for (int d = 0; d <= 50; d++)
 	{
-		delay(500);
+		delay(100);
 		flushBuffer(); //Flush out the Serial Port
 	} 
+
+	if (isHttpRead) {
+		ss.println("AT+HTTPREAD");
+		for (int d = 0; d <= 7; d++)
+		{
+			delay(500);
+			flushBuffer(); //Flush out the Serial Port
+		}
+	}
 }
 
-boolean sendURL() {
+boolean sendGetRequest() {
 	//builds url for Cloud GET Request, sends request and waits for reponse. See sendATCommand() for full comments on the flow
 	int complete = 0;
 	char c;
@@ -159,22 +225,33 @@ boolean sendURL() {
 #ifdef DEBUG
 	Serial.print(publicKey);
 #endif
-
-	ss.print("?private_key=");
+	
+	if (privateKey == NULL)
+	{
+		ss.print("?");
 #ifdef DEBUG
-	Serial.print("?private_key=");
+		Serial.print("?");
+#endif
+	}
+	else
+	{ 
+		ss.print("?private_key=");
+#ifdef DEBUG
+		Serial.print("?private_key=");
 #endif
 
-	ss.print(privateKey);
+		ss.print(privateKey);
 #ifdef DEBUG
-	Serial.print(privateKey);
+		Serial.print(privateKey);
 #endif
+	} 
 
-	for (int i_url = 0; i_url < NUM_FIELDS; i_url++) {
+	for (int i_url = 0; i_url < NUM_FIELDS; i_url++) { 
 		ss.print("&");
 #ifdef DEBUG
-		Serial.print("&");
-#endif
+	Serial.print("&");
+#endif 
+		
 		ss.print(fieldNames[i_url]);
 #ifdef DEBUG
 		Serial.print(fieldNames[i_url]);
@@ -229,7 +306,7 @@ void setupBaudRate()
 	ss.begin(9600);
 }
 
-void setupGPS() 
+void setupGPS(int interval) 
 { 
 	char cgnsurcCommand[25];
 	String CGNSURC = "AT+CGNSURC=";
@@ -238,7 +315,7 @@ void setupGPS()
 	sendATCommand("AT+CGNSPWR=1", 100); // turn on GPS
 	sendATCommand("AT+CGNSSEQ=RMC", 100); // set resulr mode to RMC
 
-	CGNSURC.concat(INTERVAL_GPS); // append with custom interval declared above
+	CGNSURC.concat(String(interval)); // append with custom interval declared above
 	CGNSURC.toCharArray(cgnsurcCommand, 25);
 	sendATCommand(cgnsurcCommand, 100); // set interval for automatic return value from GPS device
 }
@@ -261,33 +338,43 @@ void setupGPRS()
 	ss.print("AT+SAPBR=3,1,\"APN\",\"");
 	ss.print(APN);
 	ss.print("\"");
-	ss.println();
-	 
-	sendATCommand("AT+SAPBR=1,1", 2000); 
+	ss.println(); 
 }
 
-void sendATCommand(char* ATcommand, unsigned int timeout) {
-	uint8_t x = 0;
-	char responses[100];
-	unsigned long previous;
+void openGPRS()
+{  
+	sendATCommand("AT+SAPBR=1,1", 2800);
+	 
+	//initialize HTTP service. If it's already on, this will throw an Error. 
+	sendATCommand("AT+HTTPINIT", 100);
 
-	memset(responses, '\0', 100);    // Initialice the string
+	//Mandatory, Bearer profile identifier
+	sendATCommand("AT+HTTPPARA=\"CID\",1", 100); 
+}
+
+void closeGPRS()
+{
+	sendATCommand("AT+HTTPTERM", 100);
+	sendATCommand("AT+SAPBR=0,1", 1000);
+}
+
+String sendATCommand(char* ATcommand, unsigned int timeout) {
+	unsigned long previous;
+	String result = "";
 	 
 	if (ATcommand[0] != '\0')
 	{
 		ss.println(ATcommand);    // Send the AT command 
 		delay(100);
 	}
-
-	x = 0;
+	 
 	previous = millis();
 
 	// this loop waits for the answer
 	do {
 		if (ss.available() != 0) {    // if there are data in the UART input buffer, reads it and checks for the asnwer
-			responses[x] = ss.read();
-			x++;
+			result.concat(ss.read()); 
 		}
 	} while (((millis() - previous) < timeout));    // Waits for the asnwer with time out
-	 
+	return result;
 } 

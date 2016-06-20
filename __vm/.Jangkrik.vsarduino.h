@@ -68,13 +68,15 @@ extern "C" void __cxa_pure_virtual() {;}
 //
 bool processGPS(String value);
 void makeRequest();
-boolean sendURL();
+boolean sendGetRequest();
 void flushBuffer();
 void clearBuffer();
 void setupBaudRate();
-void setupGPS();
+void setupGPS(int interval);
 void setupGPRS();
-void sendATCommand(char* ATcommand, unsigned int timeout);
+void openGPRS();
+void closeGPRS();
+String sendATCommand(char* ATcommand, unsigned int timeout);
 
-#include <GPSLocationNew.ino>
+#include <GPSLocation.ino>
 #endif
