@@ -8,8 +8,6 @@ by sandalkuilang
 */
 
 #include <SoftwareSerial.h>
-#include <stdio.h>
-#include <string.h>
 
 #define RX_PIN 2 //connect to RX Pin
 #define TX_PIN 3 //connect to TX Pin
@@ -22,9 +20,9 @@ String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL
 String response; //global variable for pulling AT command responses from inside functions (there has to be a better way to do this)
 
 /* Timer Const */
-int ATtimeOut = 5000; // How long we will give an AT command to complete
-int FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
-uint16_t INTERVAL_GPS = 30; // in second 
+uint16_t ATtimeOut = 5000; // How long we will give an AT command to complete
+uint16_t FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
+byte INTERVAL_GPS = 30; // in second 
 
 //cloud URL Building
 /*
@@ -35,26 +33,19 @@ const String publicKey = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
 const String privateKey = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
 const String deleteKey = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
 
-
-// /*Dweet Storage*/ 
-//const String publicKey = "for/sandalkuilang"; //Public Key for data stream
-//const String privateKey = ""; //Private Key for data stream
-//const String deleteKey = "-----"; //Delete Key for data stream
-//String URL = "https://dweet.io/dweet/";
-
 const byte NUM_FIELDS = 6; //number of fields in data stream
 const String fieldNames[NUM_FIELDS] = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
 String fieldData[NUM_FIELDS]; //holder for the data values
 
 String content; // receive message
 bool isHttpRead = false; // read needed
-uint16_t tolerateIdle = 0; // 5 idle
+byte tolerateIdle = 0; // 5 idle
 
 void setup()
 {
 	setupBaudRate();
 	delay(FIRST_TIME_BOOT);
-	setupGPS(25);
+	setupGPS(10); // check gps every 10 second
 	setupGPRS(); 
 	delay(1000);
 	closeGPRS();
@@ -65,6 +56,7 @@ void loop()
 {
 	if (ss.available())
 	{ 
+		bool isPublish = false;
 		char c;
 		c = ss.read();
 		if (c == 0x0A || c == 0x0D) 
@@ -79,29 +71,13 @@ void loop()
 					if (speed < 5)
 					{
 						tolerateIdle += 1;
-						switch (tolerateIdle)
+						if (tolerateIdle == 3) 
 						{
-						case 1:
-							setupGPS(30);
-							break;
-						case 2:
-							setupGPS(35);
-							break;
-						case 3:
-							setupGPS(40);
-							break;
-						case 4:
-							setupGPS(45);
-							break;
-						case 5:
-							setupGPS(50);
-							break;
-						default:
-							break;
+							isPublish = true;
 						}
-						if (tolerateIdle > 5)
+						else if (tolerateIdle > 5)
 						{
-							setupGPS(55);
+							isPublish = true;
 							tolerateIdle = 6;
 						}
 					}
@@ -117,13 +93,18 @@ void loop()
 					}
 					else if (speed >= 40)
 					{
-						setupGPS(5);
+						isPublish = true;
 						tolerateIdle = 0;
 					} 
 					
-					openGPRS();
-					makeRequest();
-					closeGPRS();
+					if (isPublish)
+					{
+						openGPRS();
+						makeRequest();
+						closeGPRS();
+
+						sendATCommand("AT+CMGD=4", 100); // delete all messages
+					}
 
 				}
 			}
@@ -146,7 +127,7 @@ bool processGPS(String value)
 	 
 	// Parses the string 
 	char *strings[30];
-	int i = 0;
+	byte i = 0;
 
 	value.toCharArray(frame, 100, 0);
 
@@ -246,7 +227,7 @@ boolean sendGetRequest() {
 #endif
 	} 
 
-	for (int i_url = 0; i_url < NUM_FIELDS; i_url++) { 
+	for (byte i_url = 0; i_url < NUM_FIELDS; i_url++) { 
 		ss.print("&");
 #ifdef DEBUG
 	Serial.print("&");
@@ -281,7 +262,7 @@ boolean sendGetRequest() {
 void flushBuffer() { 
 	char inChar;
 	String outputChar;
-	for (int i = 0; i < 10; i++)
+	for (byte i = 0; i < 10; i++)
 	{
 		while (ss.available()) {
 			inChar = ss.read();
@@ -331,10 +312,6 @@ void setupGPRS()
 	sendATCommand("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", 200); 
 
 	// setup APN
-	int complete = 0;
-	char c;
-	String content;
-	unsigned long commandClock = millis(); 
 	ss.print("AT+SAPBR=3,1,\"APN\",\"");
 	ss.print(APN);
 	ss.print("\"");
