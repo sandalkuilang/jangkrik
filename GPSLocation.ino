@@ -9,32 +9,25 @@ by sandalkuilang
 
 #include <SoftwareSerial.h>
 
+#define DEBUG true
 #define RX_PIN 2 //connect to RX Pin
 #define TX_PIN 3 //connect to TX Pin
-#define DEBUG true
 
 SoftwareSerial ss = SoftwareSerial(TX_PIN, RX_PIN); //initialize software serial
 
-String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL
-
-String response; //global variable for pulling AT command responses from inside functions (there has to be a better way to do this)
-
-/* Timer Const */
-uint16_t ATtimeOut = 5000; // How long we will give an AT command to complete
-uint16_t FIRST_TIME_BOOT = 5000; // give 5s GSM device to be ready
-byte INTERVAL_GPS = 30; // in second 
+String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL 
 
 //cloud URL Building
 /*
 https://data.sparkfun.com/streams/NJ65RArGbRUd3A8DNxab
 */
-String URL = "http://data.sparkfun.com/input/";
-const String publicKey = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
-const String privateKey = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
-const String deleteKey = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
+const String URL PROGMEM = "http://data.sparkfun.com/input/";
+const String publicKey PROGMEM = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
+const String privateKey PROGMEM = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
+const String deleteKey PROGMEM = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
 
-const byte NUM_FIELDS = 6; //number of fields in data stream
-const String fieldNames[NUM_FIELDS] = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
+const byte NUM_FIELDS PROGMEM = 6; //number of fields in data stream
+const String fieldNames[NUM_FIELDS] PROGMEM = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
 String fieldData[NUM_FIELDS]; //holder for the data values
 
 String content; // receive message
@@ -48,7 +41,7 @@ void setup()
 	Serial.begin(9600);
 	ss.begin(9600);
 
-	delay(FIRST_TIME_BOOT);
+	delay(5000); // give 5s GSM device to be ready
 	setupGPS(10); // check gps every 10 second
 	setupGPRS(); 
 	delay(1000);
@@ -56,7 +49,7 @@ void setup()
 	 
 	sendATCommand("AT+CMGD=4", 100); // delete all messages
 	
-	Serial.println("Proudly Made in Indonesia");
+	Serial.println(F("Proudly Made in Indonesia"));
 }
 
 void loop()
@@ -179,7 +172,7 @@ void makeRequest()
 	/* Lots of other options in the HTTP setup, see the datasheet: google -sim800_series_at_command_manual */
 	 
 #ifdef DEBUG
-	Serial.print("Send URL: ");
+	Serial.print(F("Send URL: "));
 #endif
 	
 	sendGetRequest();
@@ -188,7 +181,7 @@ void makeRequest()
 	clearBuffer();
 
 #ifdef DEBUG
-	Serial.print("Make GET Request: ");
+	Serial.print(F("Make GET Request: "));
 #endif 
 	ss.println("AT+HTTPACTION=0");
 	for (byte d = 0; d <= 50; d++)
@@ -211,7 +204,7 @@ bool sendGetRequest() {
 	//builds url for Cloud GET Request, sends request and waits for reponse. See sendATCommand() for full comments on the flow
 	ss.print("AT+HTTPPARA=\"URL\",\"");
 #ifdef DEBUG
-	Serial.print("AT+HTTPPARA=\"URL\",\"");
+	Serial.print(F("AT+HTTPPARA=\"URL\",\""));
 #endif
 
 	ss.print(URL);
@@ -235,7 +228,7 @@ bool sendGetRequest() {
 	{ 
 		ss.print("?private_key=");
 #ifdef DEBUG
-		Serial.print("?private_key=");
+		Serial.print(F("?private_key="));
 #endif
 
 		ss.print(privateKey);
