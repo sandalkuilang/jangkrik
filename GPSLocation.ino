@@ -40,15 +40,22 @@ String fieldData[NUM_FIELDS]; //holder for the data values
 String content; // receive message
 bool isHttpRead = false; // read needed
 byte tolerateIdle = 0; // 5 idle
+byte tolerate5 = 0;
+byte tolerate20 = 0;
 
 void setup()
 {
-	setupBaudRate();
+	Serial.begin(9600);
+	ss.begin(9600);
+
 	delay(FIRST_TIME_BOOT);
 	setupGPS(10); // check gps every 10 second
 	setupGPRS(); 
 	delay(1000);
 	closeGPRS();
+	 
+	sendATCommand("AT+CMGD=4", 100); // delete all messages
+	
 	Serial.println("Proudly Made in Indonesia");
 }
 
@@ -67,15 +74,18 @@ void loop()
 				if (processGPS(content))
 				{
 					int speed = fieldData[4].toInt();
-					
+
 					if (speed < 5)
 					{
+						tolerate5 = 0;
+						tolerate20 = 0;
+
 						tolerateIdle += 1;
 						if (tolerateIdle == 3) 
 						{
 							isPublish = true;
 						}
-						else if (tolerateIdle > 5)
+						else if (tolerateIdle >= 6)
 						{
 							isPublish = true;
 							tolerateIdle = 6;
@@ -83,18 +93,32 @@ void loop()
 					}
 					else if (speed >= 5 && speed < 20)
 					{
-						setupGPS(25);
+						tolerate5 += 1;
 						tolerateIdle = 0;
+
+						if (tolerate5 >= 2)
+						{
+							isPublish = true;
+							tolerate5 = 2;
+						}
 					}
 					else if (speed >= 20 && speed < 40)
 					{
-						setupGPS(15);
+						tolerate20 += 1;
 						tolerateIdle = 0;
+
+						if (tolerate20 >= 1)
+						{
+							isPublish = true;
+							tolerate20 = 1;
+						}
 					}
 					else if (speed >= 40)
 					{
 						isPublish = true;
 						tolerateIdle = 0;
+						tolerate5 = 0;
+						tolerate20 = 0;
 					} 
 					
 					if (isPublish)
@@ -102,8 +126,6 @@ void loop()
 						openGPRS();
 						makeRequest();
 						closeGPRS();
-
-						sendATCommand("AT+CMGD=4", 100); // delete all messages
 					}
 
 				}
@@ -133,7 +155,7 @@ bool processGPS(String value)
 
 	strings[i] = strtok(frame, ",");
 
-	for (int i = 0; i < 30; i++)
+	for (byte i = 0; i < 30; i++)
 	{
 		strings[i] = strtok(NULL, ",");
 	}
@@ -169,7 +191,7 @@ void makeRequest()
 	Serial.print("Make GET Request: ");
 #endif 
 	ss.println("AT+HTTPACTION=0");
-	for (int d = 0; d <= 50; d++)
+	for (byte d = 0; d <= 50; d++)
 	{
 		delay(100);
 		flushBuffer(); //Flush out the Serial Port
@@ -177,7 +199,7 @@ void makeRequest()
 
 	if (isHttpRead) {
 		ss.println("AT+HTTPREAD");
-		for (int d = 0; d <= 7; d++)
+		for (byte d = 0; d <= 7; d++)
 		{
 			delay(500);
 			flushBuffer(); //Flush out the Serial Port
@@ -185,13 +207,8 @@ void makeRequest()
 	}
 }
 
-boolean sendGetRequest() {
+bool sendGetRequest() {
 	//builds url for Cloud GET Request, sends request and waits for reponse. See sendATCommand() for full comments on the flow
-	int complete = 0;
-	char c;
-	String content;
-	unsigned long commandClock = millis(); // Start the timeout clock
-										   //Print all of the URL components out into the Serial Port
 	ss.print("AT+HTTPPARA=\"URL\",\"");
 #ifdef DEBUG
 	Serial.print("AT+HTTPPARA=\"URL\",\"");
@@ -261,7 +278,6 @@ boolean sendGetRequest() {
 
 void flushBuffer() { 
 	char inChar;
-	String outputChar;
 	for (byte i = 0; i < 10; i++)
 	{
 		while (ss.available()) {
@@ -280,13 +296,7 @@ void clearBuffer() {
 		delay(10);
 	}
 }
-
-void setupBaudRate() 
-{
-	Serial.begin(9600);
-	ss.begin(9600);
-}
-
+ 
 void setupGPS(int interval) 
 { 
 	char cgnsurcCommand[25];
@@ -320,8 +330,17 @@ void setupGPRS()
 
 void openGPRS()
 {  
-	sendATCommand("AT+SAPBR=1,1", 2800);
-	 
+	byte timeOut = 0;
+	sendATCommand("AT+SAPBR=1,1", 400);
+	while (ss.available() == 0)
+	{
+		delay(10); timeOut += 1;
+		if (timeOut >= 250)
+		{
+			break;
+		}
+	}
+
 	//initialize HTTP service. If it's already on, this will throw an Error. 
 	sendATCommand("AT+HTTPINIT", 100);
 
