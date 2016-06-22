@@ -32,9 +32,10 @@ String fieldData[NUM_FIELDS]; //holder for the data values
 
 String content; // receive message
 bool isHttpRead = false; // read needed
-byte tolerateIdle = 0; // 5 idle
-byte tolerate5 = 0;
-byte tolerate20 = 0;
+byte tolerate0 = 0; // 10 identify
+byte tolerate1 = 0; // 5 identify
+byte tolerate5 = 0; // 1 identify
+byte tolerate20 = 0; // 0 identify
 
 void setup()
 {
@@ -66,50 +67,82 @@ void loop()
 			{ 
 				if (processGPS(content))
 				{
-					int speed = fieldData[4].toInt();
+					// publish message to server based on speed
+					int speed = fieldData[4].toInt(); // get speed
 
-					if (speed < 5)
+					if (speed == 0)
 					{
+						tolerate1 = 0;
 						tolerate5 = 0;
 						tolerate20 = 0;
 
-						tolerateIdle += 1;
-						if (tolerateIdle == 3) 
+						tolerate0 += 1;
+						if (tolerate0 > 1 && tolerate0 > 90) // 90 is 15 minutes
+						{
+							isPublish = true;
+							tolerate0 = 2; 
+						}
+						else
 						{
 							isPublish = true;
 						}
-						else if (tolerateIdle >= 6)
+					}
+					else if (speed => 1 && speed < 5) 
+					{
+						tolerate0 = 0;
+						tolerate5 = 0;
+						tolerate20 = 0;
+
+						tolerate1 += 1;
+						if (tolerate1 > 1 && tolerate1 > 6)
 						{
 							isPublish = true;
-							tolerateIdle = 6;
+							tolerate1 = 2;
+						}
+						else
+						{
+							isPublish = true;
 						}
 					}
 					else if (speed >= 5 && speed < 20)
 					{
-						tolerate5 += 1;
-						tolerateIdle = 0;
+						tolerate0 = 0;
+						tolerate1 = 0;
+						tolerate20 = 0;
 
-						if (tolerate5 >= 2)
+						tolerate5 += 1; 
+						if (tolerate5 > 1 && tolerate5 >= 3)
 						{
 							isPublish = true;
-							tolerate5 = 2;
+							tolerate5 = ;
+						}
+						else
+						{
+							isPublish = true;
 						}
 					}
 					else if (speed >= 20 && speed < 40)
 					{
-						tolerate20 += 1;
-						tolerateIdle = 0;
+						tolerate0 = 0;
+						tolerate1 = 0;
+						tolerate5 = 0;
 
-						if (tolerate20 >= 1)
+						tolerate20 += 1;
+						if (tolerate20 > 1 && tolerate20 >= 2)
 						{
 							isPublish = true;
-							tolerate20 = 1;
+							tolerate20 = 2;
+						}
+						else
+						{
+							isPublish = true;
 						}
 					}
 					else if (speed >= 40)
 					{
 						isPublish = true;
-						tolerateIdle = 0;
+						tolerate0 = 0;
+						tolerate1 = 0;
 						tolerate5 = 0;
 						tolerate20 = 0;
 					} 
@@ -306,13 +339,13 @@ void setupGPS(int interval)
   
 void setupGPRS()
 { 	 
-	sendATCommand("ATE0", 200); 
+	sendATCommand("ATE0", 100); 
 
-	sendATCommand("AT+CMGF=1", 200); 
+	sendATCommand("AT+CMGF=1", 100);
 
-	sendATCommand("AT+CGATT=1", 200); 
+	sendATCommand("AT+CGATT=1", 100);
 
-	sendATCommand("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", 200); 
+	sendATCommand("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", 100);
 
 	// setup APN
 	ss.print("AT+SAPBR=3,1,\"APN\",\"");
@@ -327,7 +360,8 @@ void openGPRS()
 	sendATCommand("AT+SAPBR=1,1", 400);
 	while (ss.available() == 0)
 	{
-		delay(10); timeOut += 1;
+		delay(10); 
+		timeOut += 1;
 		if (timeOut >= 250)
 		{
 			break;
