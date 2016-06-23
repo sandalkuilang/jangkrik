@@ -80,7 +80,7 @@ void loop()
 						if (tolerate0 > 1 && tolerate0 > 90) // 90 is 15 minutes
 						{
 							isPublish = true;
-							tolerate0 = 2; 
+							tolerate0 = 2; // reset counter
 						}
 						else
 						{
@@ -94,10 +94,10 @@ void loop()
 						tolerate20 = 0;
 
 						tolerate1 += 1;
-						if (tolerate1 > 1 && tolerate1 > 6)
+						if (tolerate1 > 1 && tolerate1 > 6) // 1 minutes
 						{
 							isPublish = true;
-							tolerate1 = 2;
+							tolerate1 = 2; // reset counter
 						}
 						else
 						{
@@ -111,10 +111,10 @@ void loop()
 						tolerate20 = 0;
 
 						tolerate5 += 1; 
-						if (tolerate5 > 1 && tolerate5 >= 3)
+						if (tolerate5 > 1 && tolerate5 > 3) // 30 second
 						{
 							isPublish = true;
-							tolerate5 = ;
+							tolerate5 = 2; // reset counter
 						}
 						else
 						{
@@ -128,7 +128,7 @@ void loop()
 						tolerate5 = 0;
 
 						tolerate20 += 1;
-						if (tolerate20 > 1 && tolerate20 >= 2)
+						if (tolerate20 > 1 && tolerate20 > 2) // 20 second
 						{
 							isPublish = true;
 							tolerate20 = 2;
@@ -139,7 +139,8 @@ void loop()
 						}
 					}
 					else if (speed >= 40)
-					{
+					{ 
+						// 10 second
 						isPublish = true;
 						tolerate0 = 0;
 						tolerate1 = 0;
