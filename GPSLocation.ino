@@ -21,18 +21,18 @@ String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL
 /*
 https://data.sparkfun.com/streams/NJ65RArGbRUd3A8DNxab
 */
-const String URL PROGMEM = "http://data.sparkfun.com/input/";
-const String publicKey PROGMEM = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
-const String privateKey PROGMEM = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
-const String deleteKey PROGMEM = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
+const String URL  = "http://data.sparkfun.com/input/";
+const String publicKey  = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
+const String privateKey  = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
+const String deleteKey  = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
 
-const byte NUM_FIELDS PROGMEM = 6; //number of fields in data stream
-const String fieldNames[NUM_FIELDS] PROGMEM = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
+const byte NUM_FIELDS  = 6; //number of fields in data stream
+const String fieldNames[NUM_FIELDS]  = { "date","latitude", "longitude", "altitude", "speed", "course" }; //actual data fields
 String fieldData[NUM_FIELDS]; //holder for the data values
 
 String content; // receive message
 bool isHttpRead = false; // read needed
-byte tolerate0 = 0; // 10 identify
+byte tolerate0 = 0; // 90 identify
 byte tolerate1 = 0; // 5 identify
 byte tolerate5 = 0; // 1 identify
 byte tolerate20 = 0; // 0 identify
@@ -47,7 +47,7 @@ void setup()
 	setupGPRS(); 
 	delay(1000);
 	closeGPRS();
-	 
+	
 	sendATCommand("AT+CMGD=4", 100); // delete all messages
 	
 	Serial.println(F("Proudly Made in Indonesia"));
@@ -70,70 +70,70 @@ void loop()
 					// publish message to server based on speed
 					int speed = fieldData[4].toInt(); // get speed
 
-					if (speed == 0)
+					if (speed <= 2)
 					{
 						tolerate1 = 0;
 						tolerate5 = 0;
 						tolerate20 = 0;
 
 						tolerate0 += 1;
-						if (tolerate0 > 1 && tolerate0 > 90) // 90 is 15 minutes
+						if (tolerate0 > 90) // 90 is 15 minutes
 						{
 							isPublish = true;
 							tolerate0 = 2; // reset counter
 						}
-						else
+						else if (tolerate0 == 1)
 						{
 							isPublish = true;
 						}
 					}
-					else if (speed => 1 && speed < 5) 
+					else if (speed > 2 && speed < 11) 
 					{
 						tolerate0 = 0;
 						tolerate5 = 0;
 						tolerate20 = 0;
 
 						tolerate1 += 1;
-						if (tolerate1 > 1 && tolerate1 > 6) // 1 minutes
+						if (tolerate1 > 6) // 1 minutes
 						{
 							isPublish = true;
 							tolerate1 = 2; // reset counter
 						}
-						else
+						else if (tolerate1 == 1)
 						{
 							isPublish = true;
 						}
 					}
-					else if (speed >= 5 && speed < 20)
+					else if (speed >= 11 && speed < 21)
 					{
 						tolerate0 = 0;
 						tolerate1 = 0;
 						tolerate20 = 0;
 
 						tolerate5 += 1; 
-						if (tolerate5 > 1 && tolerate5 > 3) // 30 second
+						if (tolerate5 > 3) // 30 second
 						{
 							isPublish = true;
 							tolerate5 = 2; // reset counter
 						}
-						else
+						else if (tolerate5 == 1)
 						{
 							isPublish = true;
 						}
 					}
-					else if (speed >= 20 && speed < 40)
+					else if (speed >= 21 && speed < 40)
 					{
 						tolerate0 = 0;
 						tolerate1 = 0;
 						tolerate5 = 0;
 
 						tolerate20 += 1;
-						if (tolerate20 > 1 && tolerate20 > 2) // 20 second
+						if (tolerate20 > 2) // 20 second
 						{
 							isPublish = true;
 							tolerate20 = 2;
 						}
-						else
+						else if (tolerate20 == 1)
 						{
 							isPublish = true;
 						}
