@@ -43,7 +43,7 @@ void setup()
 	ss.begin(9600);
 
 	delay(5000); // give 5s GSM device to be ready
-	setupGPS(10); // check gps every 10 second
+	setupGPS(5); // check gps every 5 second
 	setupGPRS(); 
 	delay(1000);
 	closeGPRS();
@@ -77,10 +77,10 @@ void loop()
 						tolerate20 = 0;
 
 						tolerate0 += 1;
-						if (tolerate0 > 90) // 90 is 15 minutes
+						if (tolerate0 > 180) // is 15 minutes
 						{
 							isPublish = true;
-							tolerate0 = 2; // reset counter
+							tolerate0 = 1; // reset counter
 						}
 						else if (tolerate0 == 1)
 						{
@@ -94,10 +94,10 @@ void loop()
 						tolerate20 = 0;
 
 						tolerate1 += 1;
-						if (tolerate1 > 6) // 1 minutes
+						if (tolerate1 > 12) // 1 minutes
 						{
 							isPublish = true;
-							tolerate1 = 2; // reset counter
+							tolerate1 = 1; // reset counter
 						}
 						else if (tolerate1 == 1)
 						{
@@ -111,10 +111,10 @@ void loop()
 						tolerate20 = 0;
 
 						tolerate5 += 1; 
-						if (tolerate5 > 3) // 30 second
+						if (tolerate5 > 6) // 30 second
 						{
 							isPublish = true;
-							tolerate5 = 2; // reset counter
+							tolerate5 = 1; // reset counter
 						}
 						else if (tolerate5 == 1)
 						{
@@ -128,17 +128,17 @@ void loop()
 						tolerate5 = 0;
 
 						tolerate20 += 1;
-						if (tolerate20 > 2) // 20 second
+						if (tolerate20 > 4) // 20 second
 						{
 							isPublish = true;
-							tolerate20 = 2;
+							tolerate20 = 1;
 						}
 						else if (tolerate20 == 1)
 						{
 							isPublish = true;
 						}
 					}
-					else if (speed >= 40)
+					else
 					{ 
 						// 10 second
 						isPublish = true;
@@ -195,6 +195,16 @@ bool processGPS(String value)
 		fieldData[3] = String(strings[4]); // Altitude
 		fieldData[4] = String(strings[5]); // Speed
 		fieldData[5] = String(strings[6]); // Course 
+
+#if DEBUG
+		Serial.println();
+		Serial.println("Date : " + fieldData[0]);
+		Serial.println("Latitude : " + fieldData[1]);
+		Serial.println("Longitude : " + fieldData[2]);
+		Serial.println("Altitude : " + fieldData[3]);
+		Serial.println("Speed : " + fieldData[4]);
+		Serial.println("Course : " + fieldData[5]);
+#endif
 		return true;
 	} 
 	return false;
@@ -210,7 +220,16 @@ void makeRequest()
 #endif
 	
 	sendGetRequest();
-	delay(2800);
+	uint16_t timeOut = 0;
+	while (ss.available() == 0)
+	{
+		delay(10);
+		timeOut += 1;
+		if (timeOut >= 350)
+		{
+			break;
+		}
+	}
 
 	clearBuffer();
 
@@ -357,29 +376,29 @@ void setupGPRS()
 
 void openGPRS()
 {  
-	byte timeOut = 0;
-	sendATCommand("AT+SAPBR=1,1", 400);
+	uint16_t timeOut = 0;
+	sendATCommand("AT+SAPBR=1,1", 100);
 	while (ss.available() == 0)
 	{
 		delay(10); 
 		timeOut += 1;
-		if (timeOut >= 250)
+		if (timeOut >= 350)
 		{
 			break;
 		}
 	}
 
 	//initialize HTTP service. If it's already on, this will throw an Error. 
-	sendATCommand("AT+HTTPINIT", 100);
+	sendATCommand("AT+HTTPINIT", 50);
 
 	//Mandatory, Bearer profile identifier
-	sendATCommand("AT+HTTPPARA=\"CID\",1", 100); 
+	sendATCommand("AT+HTTPPARA=\"CID\",1", 50); 
 }
 
 void closeGPRS()
 {
 	sendATCommand("AT+HTTPTERM", 100);
-	sendATCommand("AT+SAPBR=0,1", 1000);
+	sendATCommand("AT+SAPBR=0,1", 400);
 }
 
 String sendATCommand(char* ATcommand, unsigned int timeout) {
@@ -389,7 +408,7 @@ String sendATCommand(char* ATcommand, unsigned int timeout) {
 	if (ATcommand[0] != '\0')
 	{
 		ss.println(ATcommand);    // Send the AT command 
-		delay(100);
+		delay(20);
 	}
 	 
 	previous = millis();
