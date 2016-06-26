@@ -99,7 +99,7 @@ void loop()
 							isPublish = true;
 							tolerate1 = 1; // reset counter
 						}
-						else if (tolerate1 == 1)
+						else if (tolerate1 == 2)
 						{
 							isPublish = true;
 						}
@@ -116,7 +116,7 @@ void loop()
 							isPublish = true;
 							tolerate5 = 1; // reset counter
 						}
-						else if (tolerate5 == 1)
+						else if (tolerate5 == 2)
 						{
 							isPublish = true;
 						}
@@ -133,14 +133,14 @@ void loop()
 							isPublish = true;
 							tolerate20 = 1;
 						}
-						else if (tolerate20 == 1)
+						else if (tolerate20 == 2)
 						{
 							isPublish = true;
 						}
 					}
-					else
+					else if (speed >= 40)
 					{ 
-						// 10 second
+						// 5 second
 						isPublish = true;
 						tolerate0 = 0;
 						tolerate1 = 0;
