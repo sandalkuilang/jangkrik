@@ -36,6 +36,8 @@ byte tolerate0 = 0; // 90 identify
 byte tolerate1 = 0; // 5 identify
 byte tolerate5 = 0; // 1 identify
 byte tolerate20 = 0; // 0 identify
+ 
+unsigned long startTime;
 
 void setup()
 {
@@ -51,6 +53,7 @@ void setup()
 	sendATCommand("AT+CMGD=4", 100); // delete all messages
 
 	Serial.println(F("Proudly Made in Indonesia"));
+	startTime = millis();
 }
 
 void loop()
@@ -152,24 +155,11 @@ void loop()
 					{
 						openGPRS();
 						makeRequest();
-						closeGPRS();
+						closeGPRS(); 
 					}
 
 				}
-			}
-			else if(content.indexOf("+CPIN: READY") == 1)
-			{
-				Serial.begin(9600);
-				ss.begin(9600);
-
-				delay(5000); // give 5s GSM device to be ready
-				setupGPS(5); // check gps every 5 second
-				setupGPRS();
-				delay(1000);
-				closeGPRS();
-
-				sendATCommand("AT+CMGD=4", 100); // delete all messages
-			}
+			} 
 			else
 			{
 				// process another data, SMS or Call
@@ -178,6 +168,21 @@ void loop()
 		}
 		else content.concat(c);
 	}
+	
+	long minutes = 60000 * 1; // 1 is minute
+	if (millis() - startTime >= minutes) 
+	{ 
+		setupGPS(5); 
+		setupGPRS();
+		closeGPRS();
+
+		sendATCommand("AT+CMGD=4", 100); // delete all messages
+		
+		Serial.println();
+		Serial.println(F("DTD594053"));
+
+		startTime = millis(); //reset the timer
+	} 
 }
 
 bool processGPS(String value)
