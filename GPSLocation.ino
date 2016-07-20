@@ -21,7 +21,7 @@ String APN = "internet"; //Set APN for Mobile Service for TELKOMSEL
 /*
 https://data.sparkfun.com/streams/NJ65RArGbRUd3A8DNxab/5dReDrY9mDhJY0pBPa7g
 */
-const String URL  = "http://data.sparkfun.com/input/";
+const String URL  = "54.86.132.254:80/input/";
 const String publicKey  = "NJ65RArGbRUd3A8DNxab"; //Public Key for data stream
 const String privateKey  = "5dReDrY9mDhJY0pBPa7g"; //Private Key for data stream
 const String deleteKey  = "Bpe5L2NZ9LUakLReA4OW"; //Delete Key for data stream
@@ -172,6 +172,8 @@ void loop()
 	long minutes = 60000 * 1; // 1 is minute
 	if (millis() - startTime >= minutes) 
 	{ 
+		ss.begin(9600);
+
 		setupGPS(5); 
 		setupGPRS();
 		closeGPRS();
